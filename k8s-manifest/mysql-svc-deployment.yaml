@@ -1,0 +1,85 @@
+#############################################################################################
+##                                    NOTE:                                                ##
+## `❯ k exec -it pod/mysql-798f7499-v6w2s -c mysql -- mysql -h localhost -P 8000 -u root`  ##
+## Look at sandbox example and run some mysql commands, they should work and envoy should collect stats##
+## Also in envoy container, run `apt-get update; apt-get install curl`                     ##
+#############################################################################################
+### NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
+## Scrap above: After running the mysql service, run a client which will connect via 3306 port.
+## Our envoy should collect stats
+## ❯ kubectl run -it --rm --image=mysql:5.5 --restart=Never mysql-client -- mysql -h 10.106.124.100 -P 3306 -u root
+## TODO: Check why admin endpoint is not accessible for stats and config
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1 # Increase when not testing on minikube
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      initContainers:
+      - name: proxy-init
+        image: openpolicyagent/proxy_init:v5
+        imagePullPolicy: IfNotPresent
+        args: ["-p", "8000", "-u", "1111"]
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsNonRoot: false
+          runAsUser: 0
+      containers:
+      - name: curl
+        image: curlimages/curl 
+        command: [ "sleep", "600" ]
+      - name: mysql
+        image: mysql:5.5
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        # args: ["mysql", "-h", "localhost", "-P", "1999", "-u", "root"]
+      - name: envoy
+        image: envoyproxy/envoy:v1.17.0
+        volumeMounts:
+        - readOnly: true
+          mountPath: /config
+          name: proxy-config
+        - readOnly: true
+          mountPath: /dynamic_config
+          name: proxy-dynamic-config
+        args:
+        - "envoy"
+        - "--config-path"
+        - "/config/envoy.yaml"
+        - "--log-level"
+        - "debug"
+        env:
+        - name: ENVOY_UID
+          value: "1111"
+      volumes:
+      - name: proxy-config
+        configMap:
+          name: proxy-config
+      - name: proxy-dynamic-config
+        configMap:
+          name: proxy-dynamic-config

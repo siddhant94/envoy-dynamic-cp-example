@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-kubernetes
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: hello-kubernetes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-kubernetes
+spec:
+  replicas: 1 # Increase when not testing on minikube
+  selector:
+    matchLabels:
+      app: hello-kubernetes
+  template:
+    metadata:
+      labels:
+        app: hello-kubernetes
+    spec:
+      initContainers:
+      - name: proxy-init
+        image: openpolicyagent/proxy_init:v5
+        imagePullPolicy: IfNotPresent
+        # Configure the iptables bootstrap script to redirect traffic to the
+        # Envoy proxy on port 8000, specify that Envoy will be running as user
+        # 1111. These values must match up with the configuration
+        # defined below for the "envoy" and "opa" containers.
+        args: ["-p", "8000", "-u", "1111"]
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsNonRoot: false
+          runAsUser: 0
+      containers:
+      - name: hello-kubernetes
+        image: paulbouwer/hello-kubernetes:1.9
+        ports:
+        - containerPort: 8080
+      - name: envoy
+        image: envoyproxy/envoy:v1.17.0
+        volumeMounts:
+        - readOnly: true
+          mountPath: /config
+          name: proxy-config
+        - readOnly: true
+          mountPath: /dynamic_config
+          name: proxy-dynamic-config
+        args:
+        - "envoy"
+        - "--config-path"
+        - "/config/envoy.yaml"
+        - "--log-level"
+        - "debug"
+        env:
+        - name: ENVOY_UID
+          value: "1111"
+      volumes:
+      - name: proxy-config
+        configMap:
+          name: proxy-config
+      - name: proxy-dynamic-config
+        configMap:
+          name: proxy-dynamic-config
