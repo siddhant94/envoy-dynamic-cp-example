@@ -1,14 +1,4 @@
-#############################################################################################
-##                                    NOTE:                                                ##
-## `❯ k exec -it pod/mysql-798f7499-v6w2s -c mysql -- mysql -h localhost -P 8000 -u root`  ##
-## Look at sandbox example and run some mysql commands, they should work and envoy should collect stats##
-## Also in envoy container, run `apt-get update; apt-get install curl`                     ##
-#############################################################################################
-### NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
-## Scrap above: After running the mysql service, run a client which will connect via 3306 port.
-## Our envoy should collect stats
-## ❯ kubectl run -it --rm --image=mysql:5.5 --restart=Never mysql-client -- mysql -h 10.106.124.100 -P 3306 -u root
-## TODO: Check why admin endpoint is not accessible for stats and config
+---
 apiVersion: v1
 kind: Service
 metadata:
