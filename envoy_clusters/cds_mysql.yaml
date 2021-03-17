@@ -1,0 +1,15 @@
+resources:
+- "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  name: mysql_cluster
+  connect_timeout: 1s
+  type: strict_dns
+  load_assignment:
+    cluster_name: mysql_cluster
+    endpoints:
+    - lb_endpoints:
+      - endpoint:
+          address:
+            socket_address:
+              # address: mysql
+              address: 127.0.0.1
+              port_value: 3306

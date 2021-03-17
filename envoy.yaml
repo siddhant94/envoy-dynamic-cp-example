@@ -1,0 +1,22 @@
+node:
+  cluster: test-cluster
+  id: test-id
+
+dynamic_resources:
+  cds_config:
+    # path: /var/lib/envoy/cds.yaml
+    path: /dynamic_config/cds.yaml
+  lds_config:
+    # path: /var/lib/envoy/lds.yaml
+    path: /dynamic_config/lds.yaml
+
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 19000
+
+
+# k create cm proxy-config --from-file envoy.yaml
+# k create cm proxy-dynamic-config --from-file=cds.yaml=./envoy_clusters/cds_http.yaml --from-file=lds.yaml=./envoy_listeners/lds_tcp.yaml
