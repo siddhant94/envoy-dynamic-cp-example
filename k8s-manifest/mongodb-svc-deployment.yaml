@@ -1,0 +1,85 @@
+## To use mongo cli to connect, run,
+## ```
+## ❯ kubectl run -it --rm --image=mongo --restart=Never mongo -- bash
+## If you don't see a command prompt, try pressing enter.
+## root@mongo:/# mongo "mongodb://admin@10.108.134.26:27017"
+## MongoDB shell version v4.4.4
+## Enter password:
+## ```
+## enter password admin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 27017
+    targetPort: 27017
+  selector:
+    app: mongo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+spec:
+  replicas: 1 # Increase when not testing on minikube
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      initContainers:
+      - name: proxy-init
+        image: openpolicyagent/proxy_init:v5
+        imagePullPolicy: IfNotPresent
+        args: ["-p", "8000", "-u", "1111"]
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsNonRoot: false
+          runAsUser: 0
+      containers:
+      - name: curl
+        image: curlimages/curl 
+        command: [ "sleep", "600" ]
+      - name: mongo
+        image: mongo
+        ports:
+          - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: "admin"
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          value: "admin"
+      - name: envoy
+        image: envoyproxy/envoy:v1.17.0
+        volumeMounts:
+        - readOnly: true
+          mountPath: /config
+          name: proxy-config
+        - readOnly: true
+          mountPath: /dynamic_config
+          name: proxy-dynamic-config
+        args:
+        - "envoy"
+        - "--config-path"
+        - "/config/envoy.yaml"
+        - "--log-level"
+        - "debug"
+        env:
+        - name: ENVOY_UID
+          value: "1111"
+      volumes:
+      - name: proxy-config
+        configMap:
+          name: proxy-config
+      - name: proxy-dynamic-config
+        configMap:
+          name: proxy-dynamic-config

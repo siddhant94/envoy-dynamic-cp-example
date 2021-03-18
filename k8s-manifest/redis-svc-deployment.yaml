@@ -1,0 +1,78 @@
+## Run a client and issue some commands to generate traffic.
+## `❯ kubectl run -it --rm --image=redis --restart=Never redis-cli -- redis-cli -h 10.101.164.151 -p 6379`
+## Got redis stats successfully (Refer sandbox example)
+## redis.egress_redis.command.get.success: 2
+## redis.egress_redis.command.get.total: 2
+## redis.egress_redis.command.set.success: 2
+## redis.egress_redis.command.set.total: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1 # Increase when not testing on minikube
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      initContainers:
+      - name: proxy-init
+        image: openpolicyagent/proxy_init:v5
+        imagePullPolicy: IfNotPresent
+        args: ["-p", "8000", "-u", "1111"]
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsNonRoot: false
+          runAsUser: 0
+      containers:
+      - name: curl
+        image: curlimages/curl 
+        command: [ "sleep", "600" ]
+      - name: redis
+        image: redis
+        ports:
+        - containerPort: 6379
+      - name: envoy
+        image: envoyproxy/envoy:v1.17.0
+        volumeMounts:
+        - readOnly: true
+          mountPath: /config
+          name: proxy-config
+        - readOnly: true
+          mountPath: /dynamic_config
+          name: proxy-dynamic-config
+        args:
+        - "envoy"
+        - "--config-path"
+        - "/config/envoy.yaml"
+        - "--log-level"
+        - "debug"
+        env:
+        - name: ENVOY_UID
+          value: "1111"
+      volumes:
+      - name: proxy-config
+        configMap:
+          name: proxy-config
+      - name: proxy-dynamic-config
+        configMap:
+          name: proxy-dynamic-config
