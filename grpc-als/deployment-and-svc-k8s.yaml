@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpc-als
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 18090
+    targetPort: 18090
+  selector:
+    app: grpc-als
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpc-als
+  labels:
+    app: grpc-als
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grpc-als
+  template:
+    metadata:
+      labels:
+        app: grpc-als
+    spec:
+      containers:
+        - name: grpc-als
+          image: grpc-als:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 18090
