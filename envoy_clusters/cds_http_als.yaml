@@ -1,0 +1,36 @@
+resources:
+- "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  name: service
+  connect_timeout: 5s
+  type: STRICT_DNS
+  load_assignment:
+    cluster_name: service
+    endpoints:
+    - lb_endpoints:
+      - endpoint:
+          address:
+            socket_address:
+              protocol: TCP
+              address: 127.0.0.1
+              port_value: 8080
+- "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  name: grpc-als-cluster
+  connect_timeout: 5s
+  type: STRICT_DNS
+  lb_policy: ROUND_ROBIN
+  typed_extension_protocol_options:
+    envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+      "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+      explicit_http_config:
+        http2_protocol_options: {}
+  load_assignment:
+    cluster_name: grpc-als-cluster
+    endpoints:
+    - lb_endpoints:
+      - endpoint:
+          address:
+            socket_address:
+              # protocol: TCP
+              # address: 10.108.112.100 #test out with 0.0.0.0 and just name grpc-als (svc name given in k8s cluster)
+              address: grpc-als
+              port_value: 18090
