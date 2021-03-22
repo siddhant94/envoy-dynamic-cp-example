@@ -1,0 +1,45 @@
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8000
+  filter_chains:
+  - filters:
+    - name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        stat_prefix: ingress_http
+        codec_type: AUTO
+        access_log:
+        - name: envoy.access_loggers.http_grpc
+          typed_config:
+            '@type': type.googleapis.com/envoy.extensions.access_loggers.grpc.v3.HttpGrpcAccessLogConfig
+            common_config:
+              transport_api_version: V3
+              grpc_service:
+                google_grpc:
+                  # target_uri: 10.108.112.100:18090
+                  # NOTE: Trying with svc name, hoping k8s gives the dns resolution. Hopefully envoy is able to send logs. If it does not work check how sandbox examples have target uri as service name
+                  target_uri: grpc-als
+                  stat_prefix: als_http_logs_stat
+                # NOTE: Error adding/updating listener(s) listener_0: gRPC client cluster 'grpc-als-cluster' is not static
+                # envoy_grpc:
+                #   cluster_name: grpc-als-cluster
+              log_name: local_service_http_logs
+        route_config:
+          name: local_route
+          virtual_hosts:
+          - name: local_service
+            domains:
+            - "*"
+            routes:
+            - match:
+                prefix: "/"
+              route:
+                cluster: service
+        http_filters:
+        - name: envoy.filters.http.router
+          typed_config:
+            '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
